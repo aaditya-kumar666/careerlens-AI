@@ -1,5 +1,5 @@
 # careerlens-AI
-# 🚀 CareerLens AI
+#  CareerLens AI
 
 ### AI-Powered Career Readiness & Portfolio Verification Platform
 
