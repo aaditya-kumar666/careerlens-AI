@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background-light: #f8fafc;
+  --color-background-dark: #0f172a;
+  
+  --color-card-light: #ffffff;
+  --color-card-dark: #1e293b;
+  
+  --color-accent-blue: #3b82f6;
+  --color-accent-indigo: #6366f1;
+  --color-accent-emerald: #10b981;
+  --color-accent-amber: #f59e0b;
+  --color-accent-rose: #f43f5e;
+  
+  --font-sans: "Inter", "sans-serif";
+}
+
+body {
+  @apply bg-background-light text-slate-800 dark:bg-background-dark dark:text-slate-100 antialiased font-sans transition-colors duration-300;
+}
+
+/* Custom premium scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400 dark:bg-slate-600;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+/* Premium Light Mode Overrides */
+html:not(.dark) {
+  --color-slate-950: #f8fafc;
+  --color-slate-900: #ffffff;
+  --color-slate-800: #f1f5f9;
+  --color-slate-700: #e2e8f0;
+  
+  body {
+    background-color: #f1f5f9 !important;
+  }
+
+  aside.bg-slate-950 {
+    background-color: #f8fafc !important;
+    border-right: 1px solid #e2e8f0 !important;
+  }
+
+  .text-white:not(button, button *, a, a *, .bg-blue-600, .bg-blue-600 *, .bg-gradient-to-tr, .bg-gradient-to-tr *) {
+    color: #0f172a !important;
+  }
+  .text-slate-100 {
+    color: #1e293b !important;
+  }
+  .text-slate-300 {
+    color: #334155 !important;
+  }
+  .text-slate-400 {
+    color: #475569 !important;
+  }
+  .text-slate-500 {
+    color: #64748b !important;
+  }
+  .bg-slate-950 {
+    background-color: #f1f5f9 !important;
+  }
+  .bg-slate-900\/50, .bg-slate-900\/40, .bg-slate-900\/20, .bg-slate-900 {
+    background-color: #ffffff !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05) !important;
+  }
+  .border-slate-900, .border-slate-800 {
+    border-color: #e2e8f0 !important;
+  }
+  
+  /* Input fields & select dropdown styling */
+  input, select, textarea {
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #94a3b8 !important;
+  }
+  
+  /* Pastel Accent Badges for readability */
+  .text-blue-400 {
+    color: #2563eb !important;
+  }
+  .text-indigo-400 {
+    color: #4f46e5 !important;
+  }
+  .text-emerald-400 {
+    color: #059669 !important;
+  }
+  .text-amber-400 {
+    color: #d97706 !important;
+  }
+  .text-rose-400 {
+    color: #dc2626 !important;
+  }
+  .bg-blue-500\/10, .bg-blue-600\/10 {
+    background-color: #dbeafe !important;
+  }
+  .bg-indigo-500\/10, .bg-indigo-600\/10 {
+    background-color: #e0e7ff !important;
+  }
+  .bg-emerald-500\/10, .bg-emerald-600\/10 {
+    background-color: #d1fae5 !important;
+  }
+  .bg-amber-500\/10, .bg-amber-600\/10 {
+    background-color: #fef3c7 !important;
+  }
+  .bg-rose-500\/10, .bg-rose-600\/10 {
+    background-color: #ffe4e6 !important;
+  }
+  
+  /* Radial score track overrides */
+  circle[stroke="rgba(30, 41, 59, 0.5)"] {
+    stroke: #e2e8f0 !important;
+  }
+
+  /* Polar Grid Chart overrides */
+  svg.recharts-surface {
+    g.recharts-polar-grid-angle line, g.recharts-polar-grid-concentric path {
+      stroke: #cbd5e1 !important;
+    }
+    .recharts-legend-item-text {
+      color: #334155 !important;
+    }
+  }
+
+  /* Soften glow effects */
+  .blur-\[50px\], .blur-\[120px\] {
+    opacity: 0.25 !important;
+  }
+}
+
