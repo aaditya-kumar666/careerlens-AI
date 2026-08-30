@@ -16,7 +16,7 @@ export const LandingPage: React.FC = () => {
 
   const itemVariants = {
     hidden: { y: 0, opacity: 1 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.4, ease: 'easeOut' } }
+    visible: { y: 0, opacity: 1, transition: { duration: 0.4, ease: 'easeOut' as any } }
   };
 
   const startJourney = () => {

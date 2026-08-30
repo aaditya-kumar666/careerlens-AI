@@ -12,7 +12,8 @@ export type Page =
   | 'roadmap' 
   | 'projects' 
   | 'simulator' 
-  | 'settings';
+  | 'settings'
+  | 'ai-insights';
 
 interface AppContextType {
   token: string | null;
@@ -23,6 +24,7 @@ interface AppContextType {
   analysis: any | null;
   roadmap: any | null;
   recommendations: any[] | null;
+  aiInsights: any | null;
   isLoading: boolean;
   loadingStep: string;
   error: string | null;
@@ -34,6 +36,9 @@ interface AppContextType {
   connectGithub: (username: string) => Promise<boolean>;
   triggerAnalysis: () => Promise<boolean>;
   runSimulation: (skills: string[]) => Promise<any>;
+  updateRoadmapProgress: (itemId: string, status: string) => Promise<boolean>;
+  toggleResourceComplete: (resourceId: string, completed: boolean) => Promise<boolean>;
+  reassessSkills: () => Promise<boolean>;
   enableDemoMode: () => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
@@ -61,6 +66,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [analysis, setAnalysis] = useState<any | null>(null);
   const [roadmap, setRoadmap] = useState<any | null>(null);
   const [recommendations, setRecommendations] = useState<any[] | null>(null);
+  const [aiInsights, setAIInsights] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingStep, setLoadingStep] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +114,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setAnalysis(aData.analysis);
           setRoadmap(aData.roadmap);
           setRecommendations(aData.recommendations);
+          
+          // Fetch AI Assistance Insights safely (non-blocking)
+          try {
+            const aiRes = await fetch(`${API_BASE}/ai-insights/latest`, { headers: authHeaders });
+            if (aiRes.ok) {
+              const aiData = await aiRes.json();
+              setAIInsights(aiData);
+            } else {
+              setAIInsights(null);
+            }
+          } catch (aiErr) {
+            console.error("Failed to retrieve AI insights (non-blocking):", aiErr);
+            setAIInsights(null);
+          }
           
           if (currentPage === 'landing' || currentPage === 'login' || currentPage === 'register') {
             setCurrentPage('dashboard');
@@ -197,6 +217,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAnalysis(null);
     setRoadmap(null);
     setRecommendations(null);
+    setAIInsights(null);
     setCurrentPage('landing');
   };
 
@@ -369,6 +390,152 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const updateRoadmapProgress = async (itemId: string, status: string): Promise<boolean> => {
+    if (!token) return false;
+    if (token === 'demo_token_12345') {
+      setRoadmap((prev: any) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          items: prev.items.map((item: any) => {
+            if (item.id === itemId) {
+              return { ...item, status };
+            }
+            return item;
+          })
+        };
+      });
+      return true;
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE}/roadmap/progress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ item_id: itemId, status })
+      });
+      if (res.ok) {
+        fetchLatestData();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Error updating roadmap item progress", err);
+      return false;
+    }
+  };
+
+  const toggleResourceComplete = async (resourceId: string, completed: boolean): Promise<boolean> => {
+    if (!token) return false;
+    if (token === 'demo_token_12345') {
+      setRoadmap((prev: any) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          items: prev.items.map((item: any) => {
+            return {
+              ...item,
+              resources: item.resources.map((res: any) => {
+                if (res.id === resourceId) {
+                  return { ...res, completed };
+                }
+                return res;
+              })
+            };
+          })
+        };
+      });
+      return true;
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE}/roadmap/resource-complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ resource_id: resourceId, completed })
+      });
+      if (res.ok) {
+        fetchLatestData();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Error toggling resource completion", err);
+      return false;
+    }
+  };
+
+  const reassessSkills = async (): Promise<boolean> => {
+    if (!token) return false;
+    setIsLoading(true);
+    setLoadingStep('Reassessing portfolio capability proofs...');
+    try {
+      if (token === 'demo_token_12345') {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Upgrade SQL to verified
+        setAnalysis((prev: any) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            readiness_score: 82, // Increase score!
+            skills: prev.skills.map((s: any) => {
+              if (s.skill_name === 'SQL') {
+                return { ...s, status: 'VERIFIED' };
+              }
+              return s;
+            })
+          };
+        });
+        
+        // Mark SQL roadmap completed
+        setRoadmap((prev: any) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            items: prev.items.map((item: any) => {
+              if (item.skill === 'SQL') {
+                return { ...item, status: 'COMPLETED' };
+              }
+              return item;
+            })
+          };
+        });
+        
+        setIsLoading(false);
+        setLoadingStep('');
+        return true;
+      }
+      
+      const res = await fetch(`${API_BASE}/roadmap/reassess`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        await fetchLatestData();
+        setIsLoading(false);
+        setLoadingStep('');
+        return true;
+      }
+      setIsLoading(false);
+      setLoadingStep('');
+      return false;
+    } catch (err) {
+      console.error("Error reassessing skills", err);
+      setIsLoading(false);
+      setLoadingStep('');
+      return false;
+    }
+  };
+
   const enableDemoMode = () => {
     // Generate realistic seeded demo dataset instantly
     setToken("demo_token_12345");
@@ -483,12 +650,355 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const demoRoadmap = {
       id: "demo-roadmap-uuid",
-      title: "Machine Learning Engineer Readiness Pathway",
+      title: "Data Scientist Skill Mastery Pathway",
       items: [
-        { id: "r1", week_number: 1, skill: "Docker", explanation: "Learn Docker fundamentals to solve the claimed-but-unverified gap and dockerize your FastAPI server.", objective: "Containerize APIs", task: "Write Dockerfile, build local image, map ports, test api endpoint", milestone: "FastAPI server running in Docker container locally" },
-        { id: "r2", week_number: 2, skill: "FastAPI API Dev", explanation: "Deepen FastAPI knowledge to move it from partially verified to fully verified with structured inputs.", objective: "Design robust APIs", task: "Add Pydantic validation, error handlers, and integration tests to fastapi-model-server", milestone: "Code coverage > 80% on API endpoints" },
-        { id: "r3", week_number: 3, skill: "AWS ECS/ECR", explanation: "Create cloud deployment foundation to resolve the AWS gap.", objective: "Push and register images", task: "Configure AWS credentials, setup ECR registry, push Docker images", milestone: "Image successfully pushed to AWS ECR registry" },
-        { id: "r4", week_number: 4, skill: "Cloud Deployment", explanation: "Finalize deployment and document features in README.", objective: "Deploy to cloud", task: "Deploy ECS service running container, setup load balancer, update repository README with API docs", milestone: "Live deployment endpoint and completed readme file details" }
+        {
+          id: "r1",
+          week_number: 1,
+          skill: "SQL",
+          explanation: "SQL is required for the Data Scientist role and your current GitHub evidence shows limited SQL queries.",
+          objective: "Learn database design, basic SQL statements (SELECT, JOIN, WHERE), and aggregate queries.",
+          task: "Create a Student Performance Database using SQLite and write query scripts.",
+          milestone: "Database query scripts pushed to GitHub.",
+          why_it_matters: "SQL is required for the Data Scientist role and your current GitHub evidence shows limited SQL queries.",
+          current_level: "Beginner",
+          target_level: "Intermediate",
+          priority: "HIGH",
+          prerequisites: ["Basic Databases"],
+          estimated_time: "2-3 weeks",
+          status: "COMPLETED",
+          practice_resources: ["Complete Kaggle SQL Zoo exercises", "Design 5 SELECT queries using JOINs"],
+          project_recommendation: {
+            title: "Student Performance Analytics Dashboard",
+            description: "Design SQLite databases holding student grades and write JOIN query reports.",
+            difficulty: "Beginner"
+          },
+          resources: [
+            {
+              id: "res-sql-1",
+              title: "Kudvenkat SQL Server Tutorial Playlist",
+              provider: "kudvenkat",
+              url: "https://www.youtube.com/playlist?list=PL08903FB7ACA1C2FB",
+              resource_type: "Playlist",
+              skill: "SQL",
+              difficulty: "Beginner",
+              duration: "12 hours",
+              is_free: true,
+              is_verified: true,
+              hands_on: true,
+              description: "Extremely popular and structured video series covering relational schemas, indexes, keys, joins, subqueries, and stored procedures.",
+              youtube_playlist_id: "PL08903FB7ACA1C2FB",
+              channel_name: "kudvenkat",
+              view_count: 15000000,
+              like_count: 750000,
+              like_view_ratio: 0.05,
+              video_count: 150,
+              completeness_score: 96,
+              language: "English",
+              recommendation_score: 93,
+              why_recommended: "Recommended as top choice. Offers complete syllabus coverage, highly verified student engagement, and maps directly to your SQL gap. [DEMO DATA]",
+              completed: true,
+              is_demo_data: true
+            },
+            {
+              id: "res-sql-2",
+              title: "Intro to SQL Interactive Course",
+              provider: "Kaggle",
+              url: "https://www.kaggle.com/learn/intro-to-sql",
+              resource_type: "Interactive Course",
+              skill: "SQL",
+              difficulty: "Beginner",
+              duration: "3 hours",
+              is_free: true,
+              is_verified: true,
+              hands_on: true,
+              description: "Learn to write SQL queries using Google BigQuery with real-world datasets and live interactive workspace coding.",
+              completeness_score: 90,
+              language: "English",
+              recommendation_score: 87,
+              why_recommended: "Interactive practice environment. Recommended for hands-on query writing. [DEMO DATA]",
+              completed: true,
+              is_demo_data: true
+            }
+          ]
+        },
+        {
+          id: "r2",
+          week_number: 2,
+          skill: "Statistics",
+          explanation: "Statistics provides the mathematical foundation for evaluating models and experimental data.",
+          objective: "Understand probability distributions, hypothesis testing, and central tendency metrics.",
+          task: "Analyze a public dataset and output statistical summary summaries in a Jupyter Notebook.",
+          milestone: "Statistics analysis notebook committed.",
+          why_it_matters: "Statistics provides the mathematical foundation for evaluating models and experimental data.",
+          current_level: "Beginner",
+          target_level: "Intermediate",
+          priority: "HIGH",
+          prerequisites: ["Python"],
+          estimated_time: "2-3 weeks",
+          status: "IN_PROGRESS",
+          practice_resources: ["Run t-tests on a public dataset", "Plot statistical data summaries in a Jupyter notebook"],
+          project_recommendation: {
+            title: "Descriptive Statistics Notebook",
+            description: "Analyze a public dataset and output statistical summary summaries in a Jupyter Notebook.",
+            difficulty: "Beginner"
+          },
+          resources: [
+            {
+              id: "res-stat-1",
+              title: "Statistics - A Full University Course",
+              provider: "freeCodeCamp",
+              url: "https://www.youtube.com/watch?v=XXgne3wS3hU",
+              resource_type: "Video",
+              skill: "Statistics",
+              difficulty: "Beginner",
+              duration: "8 hours",
+              is_free: true,
+              is_verified: true,
+              hands_on: false,
+              description: "Full statistics college course covering data graphics, measures of central tendency, z-scores, probability, normal distributions, and hypothesis tests.",
+              youtube_video_id: "XXgne3wS3hU",
+              channel_name: "freeCodeCamp.org",
+              view_count: 2500000,
+              like_count: 110000,
+              like_view_ratio: 0.044,
+              completeness_score: 90,
+              language: "English",
+              recommendation_score: 89,
+              why_recommended: "Recommended as top choice. Offers comprehensive descriptive statistics coverage and high learner ratings. [DEMO DATA]",
+              completed: false,
+              is_demo_data: true
+            }
+          ]
+        },
+        {
+          id: "r3",
+          week_number: 3,
+          skill: "Machine Learning",
+          explanation: "Machine Learning is the core engine behind predictive modeling pipelines for the target role.",
+          objective: "Understand supervised algorithms, overfitting, and validation metrics.",
+          task: "Build a predictive classifier using Scikit-Learn on a local csv dataset.",
+          milestone: "ML model script with accuracy logs committed.",
+          why_it_matters: "Machine Learning is the core engine behind predictive modeling pipelines for the target role.",
+          current_level: "Not Started",
+          target_level: "Intermediate",
+          priority: "HIGH",
+          prerequisites: ["Python", "Pandas", "Statistics"],
+          estimated_time: "4-6 weeks",
+          status: "NOT_STARTED",
+          practice_resources: ["Train scikit-learn models on local housing data", "Evaluate precision/recall scores"],
+          project_recommendation: {
+            title: "Credit Fraud Classifier Pipeline",
+            description: "Train a model using Scikit-Learn to detect transaction fraud and plot confusion metrics.",
+            difficulty: "Intermediate"
+          },
+          resources: [
+            {
+              id: "res-ml-1",
+              title: "100 Days of Machine Learning Playlist",
+              provider: "CampusX",
+              url: "https://www.youtube.com/playlist?list=PLKnIAqWlhFTV2Q14piE64e0Wj1W7n1bB3",
+              resource_type: "Playlist",
+              skill: "Machine Learning",
+              difficulty: "Intermediate",
+              duration: "30 hours",
+              is_free: true,
+              is_verified: true,
+              hands_on: true,
+              description: "Comprehensive structured syllabus from scratch covering math fundamentals, Scikit-Learn algorithms, model tuning, pipelines, and end-to-end deployments.",
+              youtube_playlist_id: "PLKnIAqWlhFTV2Q14piE64e0Wj1W7n1bB3",
+              channel_name: "CampusX",
+              view_count: 13000000,
+              like_count: 650000,
+              like_view_ratio: 0.05,
+              video_count: 134,
+              completeness_score: 98,
+              language: "Hindi-English",
+              recommendation_score: 95,
+              why_recommended: "Top recommendation based on high completeness, verified engagement, and strong relevance to your Machine Learning gap. [DEMO DATA]",
+              completed: false,
+              is_demo_data: true
+            },
+            {
+              id: "res-ml-2",
+              title: "Machine Learning Algorithms Video Course",
+              provider: "freeCodeCamp",
+              url: "https://www.youtube.com/watch?v=GwIo3gTOB3I",
+              resource_type: "Video",
+              skill: "Machine Learning",
+              difficulty: "Intermediate",
+              duration: "10 hours",
+              is_free: true,
+              is_verified: true,
+              hands_on: true,
+              description: "Deep-dive video lectures explaining regressions, decision trees, neural networks, SVMs, and Scikit-Learn code patterns.",
+              youtube_video_id: "GwIo3gTOB3I",
+              channel_name: "freeCodeCamp.org",
+              view_count: 4500000,
+              like_count: 180000,
+              like_view_ratio: 0.04,
+              completeness_score: 85,
+              language: "English",
+              recommendation_score: 88,
+              why_recommended: "Recommended for its structured lesson progression and hands-on algorithms walk-through. [DEMO DATA]",
+              completed: false,
+              is_demo_data: true,
+              recommendation_type: "FALLBACK_1"
+            },
+            {
+              id: "res-ml-3",
+              title: "Machine Learning Tutorial for Beginners (GeeksforGeeks)",
+              provider: "GeeksforGeeks",
+              url: "https://www.youtube.com/watch?v=yW6aXGf2_qM",
+              resource_type: "Video",
+              skill: "Machine Learning",
+              difficulty: "Beginner",
+              duration: "2 hours",
+              is_free: true,
+              is_verified: true,
+              hands_on: true,
+              description: "A comprehensive introductory tutorial to regression and classification algorithms from GeeksforGeeks.",
+              youtube_video_id: "yW6aXGf2_qM",
+              channel_name: "GeeksforGeeks",
+              view_count: 800000,
+              like_count: 24000,
+              like_view_ratio: 0.03,
+              completeness_score: 80,
+              language: "English",
+              recommendation_score: 82,
+              why_recommended: "No higher-ranked matching YouTube or freeCodeCamp resource was available, so CareerLens selected a verified GeeksforGeeks resource for this skill. [DEMO DATA]",
+              completed: false,
+              is_demo_data: true,
+              recommendation_type: "FALLBACK_2",
+              is_fallback: true
+            }
+          ]
+        },
+        {
+          id: "r4",
+          week_number: 4,
+          skill: "Docker",
+          explanation: "Your resume lists Docker, but your current portfolio does not provide containerized deployable code proofs.",
+          objective: "Understand containers, images, port routing, and multi-container docker-compose setups.",
+          task: "Write a Dockerfile and docker-compose.yml configuration to launch an API server.",
+          milestone: "Dockerfile configuration file pushed to GitHub.",
+          why_it_matters: "Your resume lists Docker, but your current portfolio does not provide containerized deployable code proofs.",
+          current_level: "Not Started",
+          target_level: "Intermediate",
+          priority: "MEDIUM",
+          prerequisites: ["Git"],
+          estimated_time: "1-2 weeks",
+          status: "NOT_STARTED",
+          practice_resources: ["Create a Dockerfile configuration", "Run multi-container servers with docker-compose"],
+          project_recommendation: {
+            title: "Containerize and Deploy ML Pipeline",
+            description: "Write a multi-stage Dockerfile packaging your Credit Fraud Classifier script.",
+            difficulty: "Intermediate"
+          },
+          resources: [
+            {
+              id: "res-doc-1",
+              title: "Docker Tutorial for Beginners Course",
+              provider: "TechWorld with Nana",
+              url: "https://www.youtube.com/watch?v=3c-iBgEXNEw",
+              resource_type: "Video",
+              skill: "Docker",
+              difficulty: "Beginner",
+              duration: "3 hours",
+              is_free: true,
+              is_verified: true,
+              hands_on: true,
+              description: "Highly structured guide containerizing web projects. Details volumes, networks, registries, Dockerfiles, and compose scripts.",
+              youtube_video_id: "3c-iBgEXNEw",
+              channel_name: "TechWorld with Nana",
+              view_count: 7000000,
+              like_count: 240000,
+              like_view_ratio: 0.034,
+              completeness_score: 88,
+              language: "English",
+              recommendation_score: 91,
+              why_recommended: "Recommended as top choice. Offers complete environment configuration walkthroughs and high learner engagement. [DEMO DATA]",
+              completed: false,
+              is_demo_data: true
+            }
+          ]
+        }
+      ]
+    };
+
+    const demoAIInsights = {
+      id: "demo-ai-insights-uuid",
+      overall_score: 43,
+      confidence: "MEDIUM",
+      github_score: 55,
+      resume_score: 31,
+      commit_score: 61,
+      doc_score: 45,
+      consistency_score: 84,
+      signals: [
+        {
+          signal: "style_shift",
+          severity: "MEDIUM",
+          confidence: 0.68,
+          description: "Recently added files show a notable difference in naming and commenting style compared with earlier repository files.",
+          source: "credit-fraud-detection"
+        },
+        {
+          signal: "large_burst",
+          severity: "HIGH",
+          confidence: 0.90,
+          description: "An unusually large amount of code (8,000+ lines across 150 files) was added in a single commit.",
+          source: "fastapi-model-server"
+        },
+        {
+          signal: "doc_mismatch",
+          severity: "MEDIUM",
+          confidence: 0.70,
+          description: "README contains highly generic/template-like descriptions that claim advanced features not fully visible in the current implementation.",
+          source: "personal-portfolio"
+        },
+        {
+          signal: "consistent_style",
+          severity: "LOW",
+          confidence: 0.85,
+          description: "Several older repositories show consistent coding and naming conventions.",
+          source: "credit-fraud-detection"
+        },
+        {
+          signal: "claim_evidence_gap",
+          severity: "MEDIUM",
+          confidence: 0.80,
+          description: "Resume claims Docker and AWS experience, but no related configurations or deployment files were found in your public repositories.",
+          source: "Resume PDF"
+        }
+      ],
+      repo_breakdowns: [
+        {
+          name: "credit-fraud-detection",
+          score: 35,
+          confidence: "MEDIUM",
+          signals: ["✓ Consistent coding style", "✓ Incremental commits", "⚠ Minor style shift detected"],
+          recommendations: ["Ensure style consistency is maintained across new branches."]
+        },
+        {
+          name: "fastapi-model-server",
+          score: 68,
+          confidence: "HIGH",
+          signals: ["⚠ Unusually large code burst", "✓ Standard file structure", "✓ Technical README"],
+          recommendations: ["Maintain smaller, incremental commits for better project transparency."]
+        },
+        {
+          name: "personal-portfolio",
+          score: 50,
+          confidence: "MEDIUM",
+          signals: ["⚠ Generic README template description", "✓ Normal CSS/HTML file changes"],
+          recommendations: ["Add implementation details and actual screenshots of your work rather than template placeholders."]
+        }
+      ],
+      recommendations: [
+        "Maintain smaller incremental commits instead of uploading entire projects in a single commit.",
+        "Ensure your repository READMEs describe code implementations rather than using generic buzzwords.",
+        "Add Dockerfiles and deployment configurations to back up the Docker and AWS claims made on your resume."
       ]
     };
 
@@ -496,6 +1006,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAnalysis(demoAnalysis);
     setRoadmap(demoRoadmap);
     setRecommendations(demoRecommendations);
+    setAIInsights(demoAIInsights);
     setCurrentPage('dashboard');
   };
 
@@ -509,6 +1020,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       analysis,
       roadmap,
       recommendations,
+      aiInsights,
       isLoading,
       loadingStep,
       error,
@@ -520,6 +1032,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       connectGithub,
       triggerAnalysis,
       runSimulation,
+      updateRoadmapProgress,
+      toggleResourceComplete,
+      reassessSkills,
       enableDemoMode,
       theme,
       toggleTheme

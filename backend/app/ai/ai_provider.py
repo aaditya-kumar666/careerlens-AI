@@ -368,3 +368,56 @@ class AIProvider:
             })
             
         return items
+
+    def analyze_ai_assistance_context(self, code_samples: List[Dict[str, str]], readme_text: str, resume_text: str, target_role: str) -> Dict[str, Any]:
+        """Use Gemini to analyze patterns of potential AI assistance in code, docs, and resume text."""
+        if not self.client:
+            raise ValueError("Gemini client not initialized")
+            
+        # Construct summary of code samples
+        code_summary = ""
+        for idx, sample in enumerate(code_samples):
+            code_summary += f"\nFile {idx+1}: {sample.get('name')} ({sample.get('size_bytes', 0)} bytes)\n"
+            code_summary += f"Content:\n{sample.get('content', '')[:1500]}\n---\n"
+            
+        prompt = f"""
+        Analyze the following technical artifacts from a developer applying for a "{target_role}" role to identify observable signals of potential AI Assistance.
+        
+        CRITICAL RULES:
+        1. Never state that content or code was definitely written by AI. AI detection is uncertain.
+        2. Use neutral, evidence-based language (e.g., "AI assistance estimate", "AI-likeness indicators", "style shift").
+        3. Identify specific patterns such as:
+           - Code: boilerplate code templates, excessive boilerplate comments, sudden shifts in styling/naming within files.
+           - README/Docs: highly generic marketing buzzwords describing simple systems, mismatch between claimed features and real codebase.
+           - Resume: generic buzzwords, overly uniform phrasing.
+           
+        Return a JSON object containing:
+        - "code_signals": list of signals found in the code samples.
+        - "doc_signals": list of signals found in the README.
+        - "resume_signals": list of signals found in the resume.
+        
+        Each signal object must have:
+        - "signal": string code representing the pattern (e.g., "style_shift", "boilerplate_pattern", "buzzword_density", "doc_mismatch")
+        - "severity": "LOW", "MEDIUM", or "HIGH"
+        - "confidence": float between 0.0 and 1.0 (indicating evidence strength)
+        - "description": clear non-judgmental explanation of what was observed (e.g., "Comments contain excessive generic template descriptions of parameters.")
+        - "source": string indicating the file name or "Resume PDF"
+        
+        Format your response ONLY as a raw JSON block, with no formatting or markers.
+        
+        Resume text:
+        {resume_text[:2000]}
+        
+        README text:
+        {readme_text[:2000]}
+        
+        Code Samples:
+        {code_summary}
+        """
+        
+        res = self.client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        raw_json = clean_json_response(res.text)
+        return json.loads(raw_json)

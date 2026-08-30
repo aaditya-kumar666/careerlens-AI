@@ -45,6 +45,15 @@ def start_analysis(
         from app.services.roadmap_service import generate_and_save_roadmap
         generate_and_save_roadmap(db, profile.id)
         
+        # 5. Run AI Assistance Insights (failure-safe wrapper)
+        try:
+            from app.services.ai_assistance_service import calculate_and_save_ai_assistance
+            calculate_and_save_ai_assistance(db, profile.id)
+        except Exception as ai_ex:
+            print(f"AI Assistance analysis encountered an error (safely bypassed): {ai_ex}")
+            import traceback
+            traceback.print_exc()
+        
         return {"status": "success", "message": "Analysis calculated successfully."}
     except Exception as e:
         import traceback
@@ -123,19 +132,52 @@ def get_latest_analysis(
 
     roadmap_payload = None
     if roadmap:
+        import json
+        from app.services.youtube_ranker import rank_and_score_resources
         items = db.query(models.RoadmapItem).filter(models.RoadmapItem.roadmap_id == roadmap.id).order_by(models.RoadmapItem.week_number).all()
-        roadmap_payload = {
-            "id": roadmap.id,
-            "title": roadmap.title,
-            "items": [{
+        
+        # Get user's completed resources
+        completed_resources = db.query(models.UserResourceProgress).filter(
+            models.UserResourceProgress.user_id == current_user.id
+        ).all()
+        completed_ids = {cr.resource_id for cr in completed_resources}
+        
+        roadmap_items_payload = []
+        for item in items:
+            # Query db learning resources matching this skill
+            resources = db.query(models.LearningResource).filter(
+                models.LearningResource.skill == item.skill
+            ).all()
+            
+            # Rank and score resources dynamically using the scoring model
+            ranked_res = rank_and_score_resources(resources, item.skill, profile.target_role)
+            for r in ranked_res:
+                r["completed"] = r["id"] in completed_ids
+            
+            roadmap_items_payload.append({
                 "id": item.id,
                 "week_number": item.week_number,
                 "skill": item.skill,
                 "explanation": item.explanation,
                 "objective": item.objective,
                 "task": item.task,
-                "milestone": item.milestone
-            } for item in items]
+                "milestone": item.milestone,
+                "why_it_matters": item.why_it_matters or item.explanation,
+                "current_level": item.current_level,
+                "target_level": item.target_level,
+                "priority": item.priority,
+                "prerequisites": json.loads(item.prerequisites) if item.prerequisites else [],
+                "estimated_time": item.estimated_time,
+                "status": item.status,
+                "practice_resources": json.loads(item.practice_resources) if item.practice_resources else [],
+                "project_recommendation": json.loads(item.project_recommendation) if item.project_recommendation else None,
+                "resources": ranked_res
+            })
+            
+        roadmap_payload = {
+            "id": roadmap.id,
+            "title": roadmap.title,
+            "items": roadmap_items_payload
         }
 
     return {

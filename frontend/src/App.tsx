@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { LandingPage } from './views/LandingPage';
 import { AuthPage } from './views/AuthPage';
@@ -11,6 +12,7 @@ import { RoadmapPage } from './views/RoadmapPage';
 import { ProjectsPage } from './views/ProjectsPage';
 import { SimulatorPage } from './views/SimulatorPage';
 import { SettingsPage } from './views/SettingsPage';
+import { AIInsightsPage } from './views/AIInsightsPage';
 
 interface Props {
   children?: ReactNode;
@@ -90,6 +92,8 @@ const AppContent: React.FC = () => {
       return <SimulatorPage />;
     case 'settings':
       return <SettingsPage />;
+    case 'ai-insights':
+      return <AIInsightsPage />;
     default:
       return <LandingPage />;
   }

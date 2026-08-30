@@ -168,3 +168,46 @@ class SimulationResponse(BaseModel):
     breakdown_current: Dict[str, int]
     breakdown_simulated: Dict[str, int]
     skills_simulated: List[str]
+
+
+# AI Assistance Insights Schemas
+class AIAssistanceSignalResponse(BaseModel):
+    signal: str
+    severity: str
+    confidence: float
+    description: str
+    source: Optional[str] = None
+
+class AIAssistanceRepoBreakdown(BaseModel):
+    name: str
+    score: int
+    confidence: str
+    signals: List[str]
+    recommendations: List[str]
+
+class AIAssistanceAnalysisResponse(BaseModel):
+    id: str
+    overall_score: int
+    confidence: str
+    github_score: int
+    resume_score: int
+    commit_score: int
+    doc_score: int
+    consistency_score: int
+    signals: Optional[List[AIAssistanceSignalResponse]] = None
+    repo_breakdowns: Optional[List[AIAssistanceRepoBreakdown]] = None
+    recommendations: Optional[List[str]] = None
+    created_at: datetime.datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RoadmapProgressUpdate(BaseModel):
+    item_id: str
+    status: str  # NOT_STARTED, IN_PROGRESS, COMPLETED
+
+
+class ResourceProgressUpdate(BaseModel):
+    resource_id: str
+    completed: bool

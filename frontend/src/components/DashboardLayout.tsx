@@ -61,6 +61,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     { icon: <Route size={18} />, label: 'Career Roadmap', page: 'roadmap' },
     { icon: <Compass size={18} />, label: 'Recommended Projects', page: 'projects' },
     { icon: <PlaySquare size={18} />, label: 'Career Simulator', page: 'simulator' },
+    { icon: <ShieldCheck size={18} />, label: 'AI Assistance Insights', page: 'ai-insights' },
     { icon: <Settings size={18} />, label: 'Profile Settings', page: 'settings' },
   ];
 

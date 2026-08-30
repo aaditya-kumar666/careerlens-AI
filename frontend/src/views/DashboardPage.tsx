@@ -16,7 +16,8 @@ import {
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 
 export const DashboardPage: React.FC = () => {
-  const { analysis, roadmap, recommendations, setCurrentPage } = useApp();
+  const { analysis, roadmap, recommendations, aiInsights, setCurrentPage } = useApp();
+  const [showWhyModal, setShowWhyModal] = React.useState(false);
 
   if (!analysis) {
     return (
@@ -128,7 +129,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Skill Credibility and Gaps */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Credibility Card */}
           <div className="bg-slate-900/40 border border-slate-900 rounded-3xl p-6 flex flex-col justify-between">
             <div>
@@ -195,7 +196,108 @@ export const DashboardPage: React.FC = () => {
               Analyze Portfolio Gaps <ChevronRight size={14} />
             </button>
           </div>
+
+          {/* AI Assistance Insights Card */}
+          <div className="bg-slate-900/40 border border-slate-900 rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-[-25%] right-[-25%] w-[45%] h-[45%] rounded-full bg-blue-500/5 blur-[45px] pointer-events-none" />
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-slate-400 text-xs font-semibold">AI Assistance Insights</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                  aiInsights?.confidence === 'HIGH' 
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                    : aiInsights?.confidence === 'MEDIUM' 
+                    ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' 
+                    : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
+                }`}>
+                  Confidence: {aiInsights?.confidence || 'LOW'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-4 mt-2">
+                <div className="flex flex-col">
+                  <span className="text-3xl font-black text-white">{aiInsights?.overall_score || 15}%</span>
+                  <span className="text-[10px] text-slate-500 font-mono">Assistance Est.</span>
+                </div>
+                <div className="flex-1 flex flex-col gap-1.5 text-xs text-slate-400 border-l border-slate-800 pl-4">
+                  <div className="flex justify-between items-center">
+                    <span>GitHub:</span>
+                    <span className="font-bold text-white">{aiInsights?.github_score || 20}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Resume:</span>
+                    <span className="font-bold text-white">{aiInsights?.resume_score || 15}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-500 mt-4 leading-relaxed">
+                AI assistance estimates are heuristic indicators based on observable patterns. They cannot prove whether content was generated or assisted by AI.
+              </p>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button 
+                onClick={() => setShowWhyModal(true)}
+                className="flex-1 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300 rounded-xl transition-colors text-center"
+              >
+                Show Me Why
+              </button>
+              <button 
+                onClick={() => setCurrentPage('ai-insights')}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-[11px] font-bold text-white rounded-xl transition-all shadow-md"
+              >
+                Detailed Analysis
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Show Me Why Modal Overlay */}
+        {showWhyModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl flex flex-col gap-4 text-left">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 className="font-extrabold text-lg text-white">Evidence Behind AI Assistance Estimate</h3>
+                <button 
+                  onClick={() => setShowWhyModal(false)}
+                  className="text-xs text-slate-400 hover:text-white px-2.5 py-1 bg-slate-950 border border-slate-900 rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-400">
+                Below are the specific signals detected during the code and document scans.
+              </p>
+
+              <div className="flex flex-col gap-3 py-2">
+                {aiInsights?.signals && aiInsights.signals.length > 0 ? (
+                  aiInsights.signals.map((sig: any, i: number) => (
+                    <div key={i} className="p-3 bg-slate-950 border border-slate-900 rounded-2xl flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className={`font-bold uppercase tracking-wider text-[9px] px-1.5 py-0.5 rounded ${
+                          sig.severity === 'HIGH' ? 'bg-red-500/10 text-red-400 border border-red-500/10' :
+                          sig.severity === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/10' :
+                          'bg-blue-500/10 text-blue-400 border border-blue-500/10'
+                        }`}>
+                          {sig.severity} Severity
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">Source: {sig.source || 'GitHub'}</span>
+                      </div>
+                      <p className="text-slate-300 mt-1.5 leading-relaxed font-light">{sig.description}</p>
+                      <span className="text-[10px] text-slate-500 font-mono mt-1">Confidence: {Math.round(sig.confidence * 100)}%</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-slate-500 text-xs font-mono border border-dashed border-slate-800 rounded-2xl">
+                    No significant flags detected. Repository structure and resume text appear consistent and organic.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Featured Project and Roadmap overview */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

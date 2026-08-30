@@ -38,6 +38,7 @@ class CareerProfile(Base):
     portfolio_analyses = relationship("PortfolioAnalysis", back_populates="profile", cascade="all, delete-orphan")
     recommendations = relationship("Recommendation", back_populates="profile", cascade="all, delete-orphan")
     roadmaps = relationship("Roadmap", back_populates="profile", cascade="all, delete-orphan")
+    ai_assistance_analyses = relationship("AIAssistanceAnalysis", back_populates="profile", cascade="all, delete-orphan")
 
 
 class Resume(Base):
@@ -184,4 +185,77 @@ class RoadmapItem(Base):
     task = Column(Text, nullable=False)
     milestone = Column(Text, nullable=False)
     
+    # New properties for Personalized Roadmap 2.0
+    why_it_matters = Column(Text, nullable=True)
+    current_level = Column(String, default="Beginner")
+    target_level = Column(String, default="Intermediate")
+    priority = Column(String, default="MEDIUM")
+    prerequisites = Column(Text, nullable=True)  # Serialized JSON list
+    estimated_time = Column(String, nullable=True)
+    status = Column(String, default="NOT_STARTED")  # NOT_STARTED, IN_PROGRESS, COMPLETED
+    practice_resources = Column(Text, nullable=True)  # Serialized JSON list of practice details
+    project_recommendation = Column(Text, nullable=True)  # Serialized JSON object for recommended project
+    
     roadmap = relationship("Roadmap", back_populates="items")
+
+
+class AIAssistanceAnalysis(Base):
+    __tablename__ = "ai_assistance_analyses"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    career_profile_id = Column(String, ForeignKey("career_profiles.id"), nullable=False)
+    overall_score = Column(Integer, default=0)
+    confidence = Column(String, default="LOW") # LOW, MEDIUM, HIGH
+    github_score = Column(Integer, default=0)
+    resume_score = Column(Integer, default=0)
+    commit_score = Column(Integer, default=0)
+    doc_score = Column(Integer, default=0)
+    consistency_score = Column(Integer, default=0)
+    signals = Column(JSON, nullable=True) # List of dicts (signal, severity, confidence, description, source)
+    repo_breakdowns = Column(JSON, nullable=True) # List of dicts (name, score, confidence, signals, recommendations)
+    recommendations = Column(JSON, nullable=True) # List of strings
+    created_at = Column(DateTime, default=utc_now)
+    
+    profile = relationship("CareerProfile", back_populates="ai_assistance_analyses")
+
+
+class LearningResource(Base):
+    __tablename__ = "learning_resources"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    title = Column(String, nullable=False)
+    provider = Column(String, nullable=False)
+    url = Column(String, nullable=False, unique=True)
+    resource_type = Column(String, nullable=False)
+    skill = Column(String, nullable=False)
+    difficulty = Column(String, nullable=False)
+    duration = Column(String, nullable=False)
+    is_free = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=True)
+    hands_on = Column(Boolean, default=True)
+    description = Column(Text, nullable=True)
+    last_verified_at = Column(DateTime, default=utc_now)
+    
+    # YouTube specific additions
+    youtube_video_id = Column(String, nullable=True)
+    youtube_playlist_id = Column(String, nullable=True)
+    channel_name = Column(String, nullable=True)
+    view_count = Column(Integer, nullable=True)
+    like_count = Column(Integer, nullable=True)
+    like_view_ratio = Column(Float, nullable=True)
+    published_at = Column(DateTime, nullable=True)
+    video_count = Column(Integer, nullable=True)
+    completeness_score = Column(Integer, default=70)
+    language = Column(String, default="English")
+    is_available = Column(Boolean, default=True)
+    last_validated_at = Column(DateTime, nullable=True)
+
+
+class UserResourceProgress(Base):
+    __tablename__ = "user_resource_progress"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    resource_id = Column(String, ForeignKey("learning_resources.id"), nullable=False)
+    status = Column(String, default="COMPLETED")  # NOT_STARTED, IN_PROGRESS, COMPLETED
+    completed_at = Column(DateTime, default=utc_now)
