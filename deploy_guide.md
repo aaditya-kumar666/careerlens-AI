@@ -1,127 +1,105 @@
-# CareerLens AI - Startup Setup & Deployment Guide
+# CareerLens AI - Full-Stack Deployment Guide
 
-This guide provides simple, step-by-step instructions to run your backend and frontend servers locally, connect them, and deploy them to production.
-
----
-
-## 1. Local Development Setup
-
-Follow these steps to run both services on your local machine.
-
-### Part A: Running the Backend (FastAPI)
-
-1. **Open your terminal** and navigate to the backend folder:
-   ```powershell
-   cd c:/hackathon/backend
-   ```
-
-2. **Create a Python virtual environment** (if not already done):
-   ```powershell
-   python -m venv venv
-   ```
-
-3. **Activate the virtual environment**:
-   * **Windows (PowerShell)**:
-     ```powershell
-     .\venv\Scripts\Activate.ps1
-     ```
-   * **Windows (CMD)**:
-     ```cmd
-     .\venv\Scripts\activate.bat
-     ```
-   * **Mac/Linux**:
-     ```bash
-     source venv/bin/activate
-     ```
-
-4. **Install backend dependencies**:
-   ```powershell
-   pip install -r requirements.txt
-   ```
-
-5. **Configure environment variables**:
-   Create a `.env` file inside the `backend` folder (or set them directly in your shell):
-   ```ini
-   # Replace with your actual Gemini API key from Google AI Studio
-   GEMINI_API_KEY=your_gemini_api_key_here
-   JWT_SECRET=super_secret_jwt_signing_key_change_me
-   ```
-
-6. **Start the FastAPI server**:
-   ```powershell
-   uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-   ```
-   * The API server will boot on `http://127.0.0.1:8000`.
-   * Interactive Swagger API docs are available at `http://127.0.0.1:8000/docs`.
+This guide explains how to host your complete full-stack **CareerLens AI** application in the cloud for free using **Render** (for the Python FastAPI + SQLite backend) and **Vercel** (for the React/Vite frontend) connected directly to your GitHub repository.
 
 ---
 
-### Part B: Running the Frontend (Vite + React)
+## Deployment Architecture
 
-1. **Open a new terminal window** and navigate to the frontend folder:
-   ```powershell
-   cd c:/hackathon/frontend
-   ```
-
-2. **Install node packages** (updates lockfile caches):
-   ```powershell
-   npm install
-   ```
-
-3. **Start the development server**:
-   ```powershell
-   npm run dev
-   ```
-   * The UI will launch on `http://localhost:5173/`.
-   * Any change made in the code will hot-reload in the browser instantly.
+```mermaid
+graph LR
+    User([User Browser]) -->|Loads Webpage| Vercel[Vercel: Frontend]
+    User -->|Sends API requests| Render[Render: Backend]
+    Render -->|Reads/Writes| Volume[(Persistent Disk: /data/careerlens.db)]
+```
 
 ---
 
-### Part C: Connecting Frontend to Backend
+## Phase 1: Deploying the Backend on Render
+We use Render because it offers a free tier for Python Web Services and supports **Persistent Disks**, which is required to prevent your SQLite database (`careerlens.db`) from getting deleted between deploys.
 
-* **Automatic Connection**: The frontend `AppContext.tsx` is pre-configured to point to `http://localhost:8000/api` for API base fetches. As long as the backend server is running on port `8000` and the frontend on port `5173`, they will auto-connect.
-* **CORS Settings**: The backend `main.py` is configured to allow requests from `http://localhost:5173` out of the box.
+### Step 1: Create a Render Account
+1.  Go to [Render.com](https://render.com/) and sign up (linking your GitHub account is easiest).
+2.  Agree to the terms and open your dashboard.
+
+### Step 2: Create a New Web Service
+1.  On the Render Dashboard, click the **New +** button and select **Web Service**.
+2.  Choose **Build and deploy from a Git repository**.
+3.  Select your repository: `aaditya-kumar666/careerlens-AI`.
+
+### Step 3: Configure Build & Start Commands
+Fill in the deployment details exactly as follows:
+*   **Name**: `careerlens-api`
+*   **Region**: Select the region closest to you.
+*   **Branch**: `main`
+*   **Language**: `Python`
+*   **Build Command**: 
+    ```bash
+    pip install -r backend/requirements.txt
+    ```
+*   **Start Command**:
+    ```bash
+    cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    ```
+*   **Instance Type**: `Free`
+
+### Step 4: Add a Persistent Storage Disk
+1.  Scroll down to the bottom of the page and click **Advanced**.
+2.  Find the **Disks** section and click **Add Disk**.
+3.  Set the parameters:
+    *   **Name**: `sqlite_storage`
+    *   **Mount Path**: `/data`
+    *   **Size**: `1 GB` (free).
+
+### Step 5: Configure Environment Variables
+In the **Environment Variables** section, click **Add Env Variable** and declare these parameters:
+1.  **`DATABASE_URL`**: `sqlite:////data/careerlens.db`
+    *(This tells SQLAlchemy to write and save your database inside the persistent `/data` disk folder so it never gets wiped out).*
+2.  **`JWT_SECRET`**: `(Type a long random string of letters and numbers here)`
+    *(Used to encrypt session tokens secure-hashing logins).*
+3.  **`YOUTUBE_API_KEY`**: `(Optional: your Google Developer Console Youtube API key)`
+    *(Enables live search replacements for broken videos).*
+
+### Step 6: Deploy
+1.  Click **Create Web Service**.
+2.  Wait for the build logs to finish. Once completed, your backend will show `Live`.
+3.  Copy your backend URL from the top of the Render page (e.g. `https://careerlens-api.onrender.com`).
 
 ---
 
-## 2. Production Deployment Steps
+## Phase 2: Deploying the Frontend on Vercel
+Vercel is optimized for building and serving lightning-fast React applications from GitHub.
 
-To show off your startup project live to hackathon judges or users, deploy both layers to the cloud for free using the following pathways:
+### Step 1: Create a Vercel Account
+1.  Go to [Vercel.com](https://vercel.com/) and sign up using your GitHub account.
 
-### Option 1: Deploying the Backend (API & SQLite Database)
-Use **Render** (render.com) or **Railway** (railway.app):
+### Step 2: Import Your Repository
+1.  On the Vercel dashboard, click **Add New** → **Project**.
+2.  Find your `careerlens-AI` repository and click **Import**.
 
-1. **Push your code to a Git repository** (GitHub/GitLab).
-2. **Create a new Web Service** on Render/Railway.
-3. Select your repository and configure these service settings:
-   * **Environment/Runtime**: `Python`
-   * **Build Command**: `pip install -r backend/requirements.txt`
-   * **Start Command**: `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
-4. **Add Environment Variables** in the hosting dashboard settings:
-   * `GEMINI_API_KEY` = *(your Google AI key)*
-   * `JWT_SECRET` = *(a secure randomly generated text string)*
-5. **Database persistence**: The SQLite database will be written to `careerlens.db` by default. On Render/Railway, attach a small **Persistent Disk** (e.g. mount path `/data`) and update your connection URI in `backend/app/database/connection.py` to write the `.db` file on the persistent mount so database changes survive service restarts.
+### Step 3: Configure Root & Build Folders
+1.  In the configuration page, click edit next to **Root Directory** and select the **`frontend`** folder.
+2.  Under **Build and Development Settings**, verify the settings (Vite is auto-detected):
+    *   **Framework Preset**: `Vite`
+    *   **Build Command**: `npm run build`
+    *   **Output Directory**: `dist`
 
----
+### Step 4: Add Environment Variables
+Expand the **Environment Variables** section and add:
+*   **Key**: `VITE_API_URL`
+*   **Value**: `https://careerlens-api.onrender.com`
+    *(Paste the exact Render backend URL you copied from Phase 1, making sure there is no trailing slash `/` at the end).*
 
-### Option 2: Deploying the Frontend (Static Web Hosting)
-Use **Vercel** (vercel.com) or **Netlify** (netlify.app):
-
-1. **Create a new Project** on Vercel or Netlify.
-2. Select your git repository.
-3. Configure the frontend build directory settings:
-   * **Root Directory**: `frontend`
-   * **Build Command**: `npm run build`
-   * **Output Directory**: `dist`
-4. **Set Production API URL**:
-   * If you deployed your backend to Render (e.g. `https://careerlens-api.onrender.com`), configure it in your frontend environment variable or update `API_BASE` in `frontend/src/context/AppContext.tsx` to point to your live backend endpoint.
-5. Click **Deploy**. Vercel/Netlify will give you a public URL (e.g. `https://careerlens-ai.vercel.app`) to share with the judges!
+### Step 5: Click Deploy
+1.  Click **Deploy**.
+2.  Vercel will compile your TypeScript React code and host your site on a secure `https://...vercel.app` domain.
 
 ---
 
-## 3. Demo Mode (Offline Testing)
+## Verification & Testing
 
-If you don't have internet access or want to test without an active backend/API key connection:
-1. Open the app on `http://localhost:5173/`.
-2. Click **Launch Demo** or **Try Demo Analysis** on the landing page.
-3. This will bypass all network fetches, populate mock metrics, and let you test the **scoring engine, simulator checkboxes, roadmaps, and custom project boards** offline instantly!
+Once both systems are live:
+1.  Open your Vercel URL in your browser.
+2.  Go to the register page and create a new account (this will verify frontend-to-backend API communication).
+3.  Configure your target role and complete onboarding.
+4.  Navigate to the **Career Roadmap** and verify that all recommended learning resources, fallback rankings, and custom timeline progress states operate regression-free in the cloud!
